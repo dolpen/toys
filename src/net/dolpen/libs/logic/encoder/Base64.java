@@ -1,4 +1,4 @@
-package net.dolpen.libs.logic.cypher;
+package net.dolpen.libs.logic.encoder;
 
 import java.util.BitSet;
 
