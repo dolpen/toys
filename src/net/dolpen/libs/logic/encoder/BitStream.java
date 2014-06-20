@@ -1,5 +1,7 @@
 package net.dolpen.libs.logic.encoder;
 
+import java.util.Arrays;
+
 /**
  * ビット操作用の中間データ
  */
@@ -85,6 +87,11 @@ public class BitStream {
 
     public byte[] getSrc() {
         return src;
+    }
+
+    public byte[] getSrcToPosition() {
+        int pos = getPosition();
+        return Arrays.copyOf(src, pos / 8);
     }
 
     static class Cursor {
