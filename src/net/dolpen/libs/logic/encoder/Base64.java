@@ -3,8 +3,8 @@ package net.dolpen.libs.logic.encoder;
 import java.util.BitSet;
 
 public class Base64 {
-    public static final char[] table = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
-            .toCharArray();
+    public static final char[] table = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz+/"
+        .toCharArray();
 
     /**
      * 文字列の暗号化をします
@@ -14,6 +14,16 @@ public class Base64 {
      */
     public static String encodeStr(String str) {
         return encode(str.getBytes());
+    }
+
+    /**
+     * base64文字列を復号します
+     *
+     * @param str base64 string
+     * @return 文字列
+     */
+    public static String decodeStr(String str) {
+        return new String(decode(str));
     }
 
     /**
@@ -51,29 +61,21 @@ public class Base64 {
         return sb.toString();
     }
 
-    /**
-     * base64文字列を復号します
-     *
-     * @param str base64 string
-     * @return 文字列
-     */
-    public static String decodeStr(String str) {
-        return new String(decode(str));
-    }
 
     /**
      * base64文字列をバイト列に復号します
      *
-     * @param str base64 string
+     * @param base64 base64 string
      * @return バイト列
      */
-    public static byte[] decode(String str) {
-        char[] c = str.replaceAll("=", "").toCharArray();
+    public static byte[] decode(String base64) {
+        char[] c = base64.replaceAll("=", "").toCharArray();
         int s = c.length * 6;
         BitSet bs = new BitSet(s);
         for (int i = 0; i < c.length; i++) {
             int k = 0;
-            for (k = 0; k < 63 && table[k] != c[i]; k++) ;
+            while (k < 64 && table[k] != c[i]) k++;
+            if (k == 64) throw new IllegalArgumentException("not valid base64 string");
             for (int j = 0; j < 6; j++) {
                 bs.set(i * 6 + j, (k & 1 << (5 - j)) > 0);
             }
