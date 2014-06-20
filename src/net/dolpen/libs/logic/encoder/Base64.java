@@ -1,9 +1,7 @@
 package net.dolpen.libs.logic.encoder;
 
-import java.util.BitSet;
-
 public class Base64 {
-    public static final char[] table = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz+/"
+    public static final char[] table = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
         .toCharArray();
 
     /**
@@ -26,6 +24,7 @@ public class Base64 {
         return new String(decode(str));
     }
 
+
     /**
      * バイト列の暗号化をします
      *
@@ -33,29 +32,14 @@ public class Base64 {
      * @return base64 string
      */
     public static String encode(byte[] bytes) {
-        int s = bytes.length * 8;
-        if (s % 6 > 0)
-            s += 6 - (s % 6);
-        BitSet bs = new BitSet(bytes.length * 8);
-        for (int i = 0; i < bytes.length; i++) {
-            int b = (bytes[i] + 256) % 256;
-            for (int j = 0; j < 8; j++) {
-                bs.set(i * 8 + j, (b & 1 << (7 - j)) > 0);
-            }
-
-        }
-        for (int i = bytes.length * 8; i < s; i++)
-            bs.set(i, false);
-        s /= 6;
         StringBuilder sb = new StringBuilder();
-        for (int i = 0; i < s; i++) {
-            int k = 0;
-            for (int j = 0; j < 6; j++)
-                if (bs.get(i * 6 + j))
-                    k |= 1 << (5 - j);
-            sb.append(table[k]);
+        BitStream stream = new BitStream(bytes);         // Set up the BitStream
+        while (true) {
+            byte[] read = stream.read(0, 6); // Try to read 6 bits
+            if (read.length == 0) break;
+            sb.append(table[(read[0] & 0xff) >> 2]);
         }
-        s = sb.length() % 4;
+        int s = sb.length() % 4;
         for (int i = s == 0 ? 4 : s; i < 4; i++)
             sb.append('=');
         return sb.toString();
@@ -69,26 +53,16 @@ public class Base64 {
      * @return バイト列
      */
     public static byte[] decode(String base64) {
-        char[] c = base64.replaceAll("=", "").toCharArray();
-        int s = c.length * 6;
-        BitSet bs = new BitSet(s);
-        for (int i = 0; i < c.length; i++) {
+        char[] cs = base64.replaceAll("=", "").toCharArray();
+        int l = base64.length();
+        BitStream stream = new BitStream((l * 6) / 8);
+        for (char c : cs) {
+            // Look up coding table
             int k = 0;
-            while (k < 64 && table[k] != c[i]) k++;
-            if (k == 64) throw new IllegalArgumentException("not valid base64 string");
-            for (int j = 0; j < 6; j++) {
-                bs.set(i * 6 + j, (k & 1 << (5 - j)) > 0);
-            }
+            while (k < 64 && table[k] != c) k++;
+            if (k == 64) throw new IllegalArgumentException("not valid base62 string");
+            stream.write(new byte[]{(byte) k}, 2, 6);
         }
-        s /= 8;
-        byte[] bytes = new byte[s];
-        for (int i = 0; i < s; i++) {
-            int k = 0;
-            for (int j = 0; j < 8; j++)
-                if (bs.get(i * 8 + j))
-                    k |= 1 << (7 - j);
-            bytes[i] = (byte) k;
-        }
-        return bytes;
+        return stream.getSrcToPosition();
     }
 }

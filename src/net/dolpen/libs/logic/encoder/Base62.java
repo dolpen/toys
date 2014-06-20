@@ -5,7 +5,7 @@ package net.dolpen.libs.logic.encoder;
  */
 public class Base62 {
 
-    public static final char[] table = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
+    public static final char[] table = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
         .toCharArray();
 
     /**

@@ -17,4 +17,10 @@ public class Base64Test extends EncoderTest {
             assertThat(back, is(seed));
         }
     }
+
+
+
+
+
+
 }
