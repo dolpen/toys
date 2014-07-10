@@ -120,15 +120,7 @@ public class Connection {
      * @throws java.io.IOException
      */
     public String getBody() throws IOException {
-        String qstr = encodeQuery(q);
-        URL u = new URL(url + (qstr != null ? "?" : "") + qstr);
-        URLConnection c = u.openConnection();
-        for (Map.Entry<String, String> e : h.entrySet())
-            c.addRequestProperty(e.getKey(), e.getValue());
-        String encoding = c.getContentEncoding();
-        if (encoding == null) encoding = ENCODING;
-        InputStream in = Streams.ignoreUtf8Bom(c.getInputStream(), encoding);
-        return Streams.toString(in, encoding);
+        return streamAsString(execute(false, null));
     }
 
     /**
@@ -138,19 +130,7 @@ public class Connection {
      * @throws java.io.IOException
      */
     public String postBody() throws IOException {
-        URL u = new URL(url);
-        URLConnection c = u.openConnection();
-        for (Map.Entry<String, String> e : h.entrySet())
-            c.addRequestProperty(e.getKey(), e.getValue());
-        c.setDoOutput(true);
-        OutputStream os = c.getOutputStream();//POST用のOutputStreamを取得
-        PrintStream ps = new PrintStream(os);
-        ps.print(encodeQuery(q));//データをPOSTする
-        ps.close();
-        String encoding = c.getContentEncoding();
-        if (encoding == null) encoding = ENCODING;
-        InputStream in = Streams.ignoreUtf8Bom(c.getInputStream(), encoding);
-        return Streams.toString(in, encoding);
+        return streamAsString(execute(true, null));
     }
 
     /**
@@ -160,15 +140,77 @@ public class Connection {
      * @throws java.io.IOException
      */
     public String bulkPostBody(String body) throws IOException {
-        URL u = new URL(url);
+        return streamAsString(execute(true, body));
+    }
+
+    /**
+     * GETリクエストして、レスポンスをInputStreamとして返す
+     *
+     * @return InputStream
+     * @throws java.io.IOException
+     */
+    public InputStream getStream() throws IOException {
+        return execute(false, null).getInputStream();
+    }
+
+    /**
+     * POSTリクエストして、レスポンスをInputStreamとして返す
+     *
+     * @return InputStream
+     * @throws java.io.IOException
+     */
+    public InputStream postStream() throws IOException {
+        return execute(true, null).getInputStream();
+    }
+
+    /**
+     * POSTリクエストして、レスポンスをInputStreamとして返す
+     *
+     * @return InputStream
+     * @throws java.io.IOException
+     */
+    public InputStream bulkPostStream(String data) throws IOException {
+        return execute(false, data).getInputStream();
+    }
+
+
+    /**
+     * HTTPリクエスト
+     *
+     * @param post postであればtrue
+     * @param data post body
+     * @return URLConnection
+     * @throws IOException
+     */
+    private URLConnection execute(boolean post, String data) throws IOException {
+        String qstr = encodeQuery(q);
+        URL u = new URL(url + (qstr != null && !qstr.isEmpty() && !post ? ("?" + qstr) : ""));
+        // headers
         URLConnection c = u.openConnection();
         for (Map.Entry<String, String> e : h.entrySet())
             c.addRequestProperty(e.getKey(), e.getValue());
-        c.setDoOutput(true);
-        OutputStream os = c.getOutputStream();//POST用のOutputStreamを取得
-        PrintStream ps = new PrintStream(os);
-        ps.print(body);//データをPOSTする
-        ps.close();
+        // post
+        if (post) {
+            OutputStream os = c.getOutputStream();//POST用のOutputStreamを取得
+            PrintStream ps = new PrintStream(os);
+            if (data != null && !data.isEmpty()) {
+                ps.print(data);//データをPOSTする
+            } else {
+                ps.print(qstr);
+            }
+            ps.close();
+        }
+        return c;
+    }
+
+    /**
+     * レスポンスを文字列として読み出す
+     *
+     * @param c URLConnection
+     * @return responseText
+     * @throws IOException
+     */
+    private String streamAsString(URLConnection c) throws IOException {
         String encoding = c.getContentEncoding();
         if (encoding == null) encoding = ENCODING;
         InputStream in = Streams.ignoreUtf8Bom(c.getInputStream(), encoding);

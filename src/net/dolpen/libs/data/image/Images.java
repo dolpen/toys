@@ -3,9 +3,7 @@ package net.dolpen.libs.data.image;
 import javax.imageio.ImageIO;
 import java.awt.*;
 import java.awt.image.BufferedImage;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
+import java.io.*;
 
 /**
  * 画像操作系ライブラリ
@@ -38,13 +36,13 @@ public class Images {
     }
 
     public static enum ResizeStrategy {
-        FORCE(true) {
+        FORCE {
             @Override
             public ResizeInfo getResizeInfo(int width, int height, int afterWidth, int afterHeight) {
                 return new ResizeInfo(0, 0, afterWidth, afterHeight, afterWidth, afterHeight);
             }
         }, // アスペクト比を維持しない
-        SHORTSIDE(false) {
+        SHORTSIDE {
             @Override
             public ResizeInfo getResizeInfo(int width, int height, int afterWidth, int afterHeight) {
                 boolean sidelong = width * afterHeight > width * afterWidth;
@@ -54,7 +52,7 @@ public class Images {
                 return new ResizeInfo(0, 0, transWidth, transHeight, transWidth, transHeight);
             }
         }, // 短辺に合わせる(長辺側がはみ出す)
-        LONGSIDE(false) {
+        LONGSIDE {
             @Override
             public ResizeInfo getResizeInfo(int width, int height, int afterWidth, int afterHeight) {
                 boolean sidelong = width * afterHeight > width * afterWidth;
@@ -64,7 +62,7 @@ public class Images {
                 return new ResizeInfo(0, 0, transWidth, transHeight, transWidth, transHeight);
             }
         }, // 長辺に合わせる(短辺側が削れる)
-        CUT(true) {
+        CUT {
             @Override
             public ResizeInfo getResizeInfo(int width, int height, int afterWidth, int afterHeight) {
                 boolean sidelong = width * afterHeight > width * afterWidth;
@@ -76,7 +74,7 @@ public class Images {
                 return new ResizeInfo(transLeft, transTop, transWidth, transHeight, afterWidth, afterHeight);
             }
         },  // 長辺側のはみ出しを切り取る
-        FIT(true) {
+        FIT {
             @Override
             public ResizeInfo getResizeInfo(int width, int height, int afterWidth, int afterHeight) {
                 boolean sidelong = width * afterHeight > width * afterWidth;
@@ -89,11 +87,6 @@ public class Images {
             }
         };// 短辺の不足領域を埋める(領域に収める)
 
-        private boolean forceSizing;
-
-        private ResizeStrategy(boolean forceSizing) {
-            this.forceSizing = forceSizing;
-        }
 
         public ResizeInfo getResizeInfo(int width, int height, int afterWidth, int afterHeight) {
             return null;
@@ -162,7 +155,11 @@ public class Images {
 
     public void writeTo(File dest, Format format) throws IOException {
         if (format.isSupported()) {
-            ImageIO.write(buffer, format.name(), dest);
+            BufferedImage newImage = new BufferedImage(buffer.getWidth(), buffer.getHeight(), buffer.getType());
+            Graphics g = newImage.createGraphics();
+            g.drawImage(buffer, 0, 0, buffer.getWidth(), buffer.getHeight(), null);
+            g.dispose();
+            ImageIO.write(newImage, format.name(), dest);
         } else {
             throw new IllegalArgumentException("指定に使えないパラメータです");
         }
@@ -177,20 +174,25 @@ public class Images {
     }
 
 
-    public static Images of(File imageFile) throws IOException {
+    public static Images of(InputStream is) throws IOException {
         Images resp = new Images();
-        resp.format = getFormatFromFile(imageFile);
-        resp.buffer = ImageIO.read(imageFile);
+        BufferedInputStream bis = new BufferedInputStream(is);
+        resp.format = getFormatFromFile(bis);
+        bis.reset();
+        resp.buffer = ImageIO.read(bis);
         return resp;
     }
 
-    private static Format getFormatFromFile(File file) {
-        FileInputStream is = null;
+    public static Images of(File imageFile) throws IOException {
+        return of(new FileInputStream(imageFile));
+    }
+
+    private static Format getFormatFromFile(InputStream is) {
         try {
-            is = new FileInputStream(file);
             is.mark(8);
             byte[] b = new byte[8];
             int r = is.read(b, 0, 8);
+            is.reset();
             if (r != 8) return Format.UNKNOWN;
             long p = 0x00L;
             for (int k = 0; k < 8; k++)
@@ -203,11 +205,7 @@ public class Images {
         } catch (IOException e) {
             e.printStackTrace();
             return Format.UNKNOWN;
-        } finally {
-            if (is != null) try {
-                is.close();
-            } catch (IOException e) {
-            }
         }
     }
+
 }
