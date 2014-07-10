@@ -191,7 +191,6 @@ public class Images {
             is.mark(8);
             byte[] b = new byte[8];
             int r = is.read(b, 0, 8);
-            is.reset();
             if (r != 8) return Format.UNKNOWN;
             long p = 0x00L;
             for (int k = 0; k < 8; k++)
@@ -202,6 +201,7 @@ public class Images {
             }
             return Format.UNKNOWN;
         } catch (IOException e) {
+            e.printStackTrace();
             return Format.UNKNOWN;
         } finally {
             if (is != null) try {
