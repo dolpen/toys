@@ -4,6 +4,7 @@ import javax.imageio.ImageIO;
 import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 
 /**
@@ -100,18 +101,36 @@ public class Images {
     }
 
     public static enum Format {
-        JPG,
-        BMP,
-        PNG,
-        GIF
+        JPG(true, 0xffd8000000000000L),
+        BMP(true, 0x424D000000000000L),
+        PNG(true, 0x89504E470D0A1A0AL),
+        GIF(true, 0x4749460000000000L),
+        UNKNOWN(false, 0x0000000000000000L);
+
+        private boolean support;
+
+        private long mask;
+
+        private Format(boolean support, long mask) {
+            this.support = support;
+            this.mask = mask;
+        }
+
+        public boolean isSupported() {
+            return support;
+        }
+
+        public long getMask() {
+            return mask;
+        }
+
     }
 
 
-    BufferedImage buffer;
+    private BufferedImage buffer;
 
-    public Images(File imageFile) throws IOException {
-        buffer = ImageIO.read(imageFile);
-    }
+    private Format format;
+
 
     public Images resize(int width, int height, ResizeStrategy strategy) {
         ResizeInfo info = strategy.getResizeInfo(buffer.getWidth(), buffer.getHeight(), width, height);
@@ -142,10 +161,53 @@ public class Images {
     }
 
     public void writeTo(File dest, Format format) throws IOException {
-        ImageIO.write(buffer, format.name(), dest);
+        if (format.isSupported()) {
+            ImageIO.write(buffer, format.name(), dest);
+        } else {
+            throw new IllegalArgumentException("指定に使えないパラメータです");
+        }
     }
 
     public void writeTo(File dest) throws IOException {
         writeTo(dest, Format.PNG);
+    }
+
+    public Format getFormat() {
+        return format;
+    }
+
+
+    public static Images of(File imageFile) throws IOException {
+        Images resp = new Images();
+        resp.format = getFormatFromFile(imageFile);
+        resp.buffer = ImageIO.read(imageFile);
+        return resp;
+    }
+
+    private static Format getFormatFromFile(File file) {
+        FileInputStream is = null;
+        try {
+            is = new FileInputStream(file);
+            is.mark(8);
+            byte[] b = new byte[8];
+            int r = is.read(b, 0, 8);
+            is.reset();
+            if (r != 8) return Format.UNKNOWN;
+            long p = 0x00L;
+            for (int k = 0; k < 8; k++)
+                p |= ((long) b[k] & 0xffL) << (8 * (7 - k));
+            for (Format f : Format.values()) {
+                long m = f.getMask();
+                if ((p & m) == m) return f;
+            }
+            return Format.UNKNOWN;
+        } catch (IOException e) {
+            return Format.UNKNOWN;
+        } finally {
+            if (is != null) try {
+                is.close();
+            } catch (IOException e) {
+            }
+        }
     }
 }
